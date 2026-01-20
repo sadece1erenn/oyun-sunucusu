@@ -13,38 +13,56 @@ const players = new Map();
 
 wss.on('connection', (ws) => {
   let playerId;
+  console.log('New client connected');
   
-ws.on('message', (data) => {
-  try {
-    const msg = JSON.parse(data);
-    
-    if (msg.type === 'join') {
-      playerId = msg.name;
-      players.set(playerId, { ws, data: msg });
-      broadcast({ type: 'playerJoined', player: msg }, ws);
-    }
-    
-    if (msg.type === 'update') {
-      if (playerId) {
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data);
+      
+      if (msg.type === 'join') {
+        playerId = msg.name;
         players.set(playerId, { ws, data: msg });
-        broadcast({ type: 'playerUpdate', player: msg }, ws);
+        console.log(`Player joined: ${playerId}`);
+        broadcast({ type: 'playerJoined', player: msg }, ws);
       }
+      
+      if (msg.type === 'update') {
+        if (playerId) {
+          players.set(playerId, { ws, data: msg });
+          broadcast({ type: 'playerUpdate', player: msg }, ws);
+        }
+      }
+      
+      if (msg.type === 'secretMode') {
+        console.log(`Secret mode from ${msg.name}: ${msg.active}`);
+        broadcast({ type: 'secretMode', name: msg.name, active: msg.active }, null);
+      }
+      
+    } catch (e) {
+      console.error('Error parsing message:', e);
     }
-    
-    // NEW: Broadcast secret mode
-    if (msg.type === 'secretMode') {
-      broadcast({ type: 'secretMode', name: msg.name, active: msg.active }, null);
+  });
+  
+  ws.on('close', () => {
+    if (playerId) {
+      console.log(`Player left: ${playerId}`);
+      players.delete(playerId);
+      broadcast({ type: 'playerLeft', name: playerId });
     }
-    
-  } catch (e) {
-    console.error('Error:', e);
-  }
+  });
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
 });
 
 function broadcast(msg, sender) {
+  const msgStr = JSON.stringify(msg);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN && client !== sender) {
-      client.send(JSON.stringify(msg));
+      client.send(msgStr);
     }
   });
 }
+
+console.log('WebSocket server ready');
