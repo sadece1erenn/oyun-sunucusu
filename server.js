@@ -14,35 +14,6 @@ const players = new Map();
 wss.on('connection', (ws) => {
   let playerId;
   
-  ws.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data);
-      
-      if (msg.type === 'join') {
-        playerId = msg.name;
-        players.set(playerId, { ws, data: msg });
-        broadcast({ type: 'playerJoined', player: msg }, ws);
-      }
-      
-      if (msg.type === 'update') {
-        if (playerId) {
-          players.set(playerId, { ws, data: msg });
-          broadcast({ type: 'playerUpdate', player: msg }, ws);
-        }
-      }
-    } catch (e) {
-      console.error('Error:', e);
-    }
-  });
-  
-  ws.on('close', () => {
-    if (playerId) {
-      players.delete(playerId);
-      broadcast({ type: 'playerLeft', name: playerId });
-    }
-  });
-});
-
 ws.on('message', (data) => {
   try {
     const msg = JSON.parse(data);
